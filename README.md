@@ -46,7 +46,10 @@ wikimind lint
 
 ## Roadmap
 
-### v0.1.0 — Core CLI (current)
+### v0.1.0 — Scaffolding
+- [x] project scaffolding with placeholders
+
+### v0.2.0 — Core CLI (current)
 - [x] `wikimind init` — project scaffolding with schema, index, and log
 - [x] `wikimind ingest` — normalise and track raw source documents
 - [x] `wikimind compile` — LLM-powered concept extraction, article generation, backlinks, graph
@@ -54,23 +57,23 @@ wikimind lint
 - [x] `wikimind lint` — structural checks and LLM-powered quality audits
 - [x] `wikimind config` — view and update settings from CLI
 
-### v0.2.0 — Broader Ingestion
+### v0.3.0 — Broader Ingestion
 - [ ] URL ingestion (`wikimind ingest --url`)
 - [ ] PDF support
 - [ ] CSV to markdown tables
 - [ ] HTML to markdown conversion
 
-### v0.3.0 — Local UI
+### v0.4.0 — Local UI
 - [ ] `wikimind serve` — local web UI with interactive knowledge graph
 - [ ] Query interface with chat UI
 - [ ] Gaps dashboard
 
-### v0.4.0 — Publish & Share
+### v0.5.0 — Publish & Share
 - [ ] `wikimind publish` — push wiki to llm-wiki.dev
 - [ ] Public wiki profiles
 - [ ] Embeddable knowledge graphs
 
-### v0.5.0 — Multi-Model & Ecosystem
+### v0.6.0 — Multi-Model & Ecosystem
 - [ ] Provider abstraction (OpenAI, Gemini, local models)
 - [ ] Akashik Protocol integration (wiki as a shared memory layer)
 - [ ] Fork and explore other published wikis
