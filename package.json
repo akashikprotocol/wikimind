@@ -1,7 +1,7 @@
 {
   "name": "wikimind",
   "version": "0.1.0",
-  "description": "CLI tool that uses LLMs to compile raw documents into a structured, interlinked wiki with auto-generated concepts, backlinks, and indexes. Obsidian-compatible. Based on Andrej Karpathy Post.",
+  "description": "CLI tool that uses LLMs to compile raw documents into a structured, interlinked wiki with auto-generated concepts, backlinks, and indexes. Based on Andrej Karpathy Post.",
   "author": "Sahil David",
   "license": "Apache-2.0",
   "type": "module",
@@ -14,25 +14,33 @@
     "markdown",
     "ai",
     "anthropic",
-    "claude",
-    "rag",
-    "knowledge-management"
+    "claude"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/akashikprotocol/wikimind"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "tsc --watch"
   },
   "bin": {
     "wikimind": "./dist/cli.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "chalk": "^5.0.0",
+    "commander": "^12.0.0",
+    "glob": "^11.0.0",
+    "gray-matter": "^4.0.0",
+    "ora": "^8.0.0",
+    "yaml": "^2.4.1"
   },
   "devDependencies": {
-    "@types/node": "^25.5.2",
-    "typescript": "^6.0.2"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
   }
 }

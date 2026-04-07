@@ -1,38 +1,75 @@
 #!/usr/bin/env node
 
-const ROADMAP = `
-wikimind — Roadmap
+import { Command } from "commander";
+import { initCommand } from "./commands/init.js";
+import { ingestCommand } from "./commands/ingest.js";
+import { compileCommand } from "./commands/compile.js";
+import { configCommand } from "./commands/config.js";
+import { queryCommand } from "./commands/query.js";
+import { lintCommand } from "./commands/lint.js";
 
-  v0.1.0  Placeholder (current)
-  ✔  Package scaffolding and npm publish
+const program = new Command();
 
-  v0.2.0  Foundation
-  ○  wikimind init    — initialise project config and folder structure
-  ○  wikimind ingest  — copy/index raw source documents
+program
+  .name("wikimind")
+  .description("Compile raw documents into a structured, interlinked wiki using LLMs.")
+  .version("0.1.0");
 
-  v0.3.0  Compilation
-  ○  wikimind compile — LLM pass to extract concepts and generate wiki articles
-  ○  Auto-generated backlinks and [[wikilinks]]
-  ○  Index pages per topic/tag
+// init
+program
+  .command("init [name]")
+  .description("Initialise a new wikimind project in the current directory or a new subdirectory.")
+  .action(async (name: string | undefined) => {
+    await initCommand(name);
+  });
 
-  v0.4.0  Query & Maintenance
-  ○  wikimind query   — natural language Q&A against the compiled wiki
-  ○  wikimind lint    — detect broken links, gaps, and inconsistencies
+// TODO: ingest   — copy/index raw source documents
 
-  v1.0.0  Stable
-  ○  Full Obsidian vault compatibility
-  ○  Incremental compilation (only reprocess changed sources)
-  ○  Plugin/provider abstraction (support models beyond Claude)
+// ingest
+program
+  .command("ingest")
+  .description("Scan raw/ for new or changed files, normalise them, and update state.")
+  .option("--file <path>", "Process a single specific file instead of scanning all of raw/.")
+  .action(async (opts: { file?: string }) => {
+    await ingestCommand({ file: opts.file });
+  });
 
-  https://github.com/akashikprotocol/llmwiki
-`;
+// compile
+program
+  .command("compile")
+  .description("Extract concepts from ingested sources and generate interlinked wiki articles.")
+  .option("--full", "Recompile all ingested sources from scratch.", false)
+  .option("--dry-run", "Show what would change without writing any files.", false)
+  .action(async (opts: { full: boolean; dryRun: boolean }) => {
+    await compileCommand({ full: opts.full, dryRun: opts.dryRun });
+  });
 
-const command = process.argv[2];
+// query
+program
+  .command("query [query]")
+  .description("Ask a question against the compiled wiki.")
+  .option("--save", "Save the answer to queries/.", false)
+  .option("--promote", "Promote the answer to a wiki/concepts/ article.", false)
+  .action(async (query: string | undefined, opts: { save: boolean; promote: boolean }) => {
+    await queryCommand(query, { save: opts.save, promote: opts.promote });
+  });
 
-if (command === "roadmap") {
-  console.log(ROADMAP);
-} else {
-  console.log("wikimind v0.1.0 — coming soon. https://github.com/akashikprotocol/llmwiki");
-  console.log("  Commands: roadmap");
-}
+// lint
+program
+  .command("lint")
+  .description("Run health checks on the wiki.")
+  .option("--structural", "Run structural checks only, no LLM calls.", false)
+  .option("--fix", "Auto-fix broken links and missing connections.", false)
+  .action(async (opts: { structural: boolean; fix: boolean }) => {
+    await lintCommand({ structural: opts.structural, fix: opts.fix });
+  });
 
+// config
+program
+  .command("config [key] [value]")
+  .description("View or update project settings.")
+  .action(async (key: string | undefined, value: string | undefined) => {
+    await configCommand(key, value);
+  });
+
+program.parse(process.argv);
