@@ -35,14 +35,132 @@ wikimind lint
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `wikimind init` | Scaffold project with schema, index, and log |
-| `wikimind ingest` | Normalise and track raw source documents |
-| `wikimind compile` | Extract concepts, generate articles, build backlinks and graph |
-| `wikimind query` | Natural language Q&A against the compiled wiki |
-| `wikimind lint` | Structural checks and LLM-powered quality audits |
-| `wikimind config` | View and update project settings |
+### `wikimind init [name]`
+
+Scaffolds a new wikimind project. Creates the folder structure, config, state file, schema, index, and log.
+
+```bash
+wikimind init              # Initialise in current directory
+wikimind init my-research  # Create and initialise a new subdirectory
+```
+
+**Creates:**
+```
+.wikimind/config.json   # Project settings
+.wikimind/state.json    # Ingest and compile state
+raw/                    # Drop your source files here
+wiki/concepts/          # Generated articles live here
+wiki/schema.md          # Conventions the LLM follows
+wiki/index.md           # Auto-generated master index
+wiki/log.md             # Append-only operation log
+queries/                # Saved query answers
+```
+
+---
+
+### `wikimind ingest [--file <path>]`
+
+Scans `raw/` for new or modified files, normalises them, and updates state. Supports `.md`, `.txt`, and `.json`. Uses SHA-256 hashing to detect changes — unchanged files are skipped.
+
+```bash
+wikimind ingest                     # Scan all of raw/
+wikimind ingest --file raw/note.md  # Process a single file
+```
+
+---
+
+### `wikimind compile [options]`
+
+Extracts concepts from ingested sources using Claude, generates or updates wiki articles, inserts backlinks, rebuilds the concept graph, and regenerates the index.
+
+Only processes sources that have changed since the last compile (incremental by default).
+
+```bash
+wikimind compile                                        # Incremental compile
+wikimind compile --full                                 # Recompile all sources from scratch
+wikimind compile --dry-run                              # Preview what would change, no writes
+wikimind compile --prompt "Only extract AI concepts"   # Override custom prompt for this run
+```
+
+| Option | Description |
+|--------|-------------|
+| `--full` | Reprocess all ingested sources, not just changed ones |
+| `--dry-run` | Show what would be created/updated without writing files |
+| `--prompt <text>` | One-off instruction appended to the system prompt |
+
+---
+
+### `wikimind query [query] [options]`
+
+Finds the most relevant wiki articles for your question and synthesises an answer using Claude. Cites sources with `[[Wikilinks]]`. If no query is provided and stdin is a TTY, enters interactive REPL mode.
+
+```bash
+wikimind query "What are the key themes?"              # Single query
+wikimind query "Explain X" --save                      # Save answer to queries/
+wikimind query "Explain X" --promote                   # Promote answer to wiki/concepts/
+wikimind query "Explain X" --prompt "Answer in bullets"
+wikimind query                                          # Interactive REPL mode
+```
+
+| Option | Description |
+|--------|-------------|
+| `--save` | Save the answer as a markdown file in `queries/` |
+| `--promote` | Save the answer directly to `wiki/concepts/` as a new article |
+| `--prompt <text>` | One-off instruction appended to the system prompt |
+
+---
+
+### `wikimind lint [options]`
+
+Runs health checks on the compiled wiki. Phase 1 (always): structural checks with no LLM calls. Phase 2 (default): LLM-powered quality analysis. Phase 3 (opt-in): auto-fix safe issues.
+
+```bash
+wikimind lint                                          # Full lint (structural + LLM)
+wikimind lint --structural                             # Structural checks only, no LLM
+wikimind lint --fix                                    # Auto-fix broken links and missing connections
+wikimind lint --prompt "Focus on contradictions only"
+```
+
+**Structural checks:**
+- Broken `[[wikilinks]]` (with fixability detection)
+- Orphaned articles (zero incoming links)
+- Stale sources (modified since last compile)
+- Empty articles (body < 50 characters)
+- Missing frontmatter fields (`title`, `sources`, `related`)
+
+**LLM analysis:**
+- Contradictions between articles
+- Concept gaps (mentioned but no page exists)
+- Weak articles
+- Missing connections between articles
+- Suggested new articles
+
+| Option | Description |
+|--------|-------------|
+| `--structural` | Run structural checks only, skip LLM |
+| `--fix` | Auto-fix broken links and insert missing connections |
+| `--prompt <text>` | One-off instruction appended to the system prompt |
+
+---
+
+### `wikimind config [key] [value]`
+
+View or update project settings stored in `.wikimind/config.json`.
+
+```bash
+wikimind config                              # Show all settings
+wikimind config model                        # Show one setting
+wikimind config model claude-opus-4-5        # Set a value
+wikimind config customPrompt "Always cite the podcast this concept appeared in"
+```
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `model` | `claude-sonnet-4-20250514` | Claude model to use |
+| `maxTokensPerChunk` | `4000` | Max tokens per source chunk |
+| `outputFormat` | `obsidian` | Output format (`obsidian` or `standard`) |
+| `autoBacklink` | `true` | Auto-insert backlinks after compile |
+| `customPrompt` | _(empty)_ | Persistent instruction appended to all LLM prompts |
 
 ## Roadmap
 
