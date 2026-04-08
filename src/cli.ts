@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { createRequire } from "module";
 import { initCommand } from "./commands/init.js";
 import { ingestCommand } from "./commands/ingest.js";
 import { compileCommand } from "./commands/compile.js";
@@ -10,12 +11,15 @@ import { lintCommand } from "./commands/lint.js";
 import { graphCommand } from "./commands/graph.js";
 import { exportCommand } from "./commands/export.js";
 
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
+
 const program = new Command();
 
 program
   .name("wikimind")
   .description("Compile raw documents into a structured, interlinked wiki using LLMs.")
-  .version("0.1.0");
+  .version(pkg.version);
 
 // init
 program
