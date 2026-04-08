@@ -7,7 +7,7 @@ export interface PromptPair {
  * Prompt for extracting distinct concepts from a source document.
  * Returns a JSON array of concept objects.
  */
-export function extractConceptsPrompt(schema: string, source: string): PromptPair {
+export function extractConceptsPrompt(schema: string, source: string, customPrompt?: string): PromptPair {
   return {
     system: `You are a knowledge compiler. You read source documents and extract distinct concepts, ideas, entities, and topics that deserve their own wiki article.
 
@@ -18,7 +18,8 @@ Rules:
 - Extract concepts that are substantive enough for a standalone article.
 - Each concept should be a noun or noun phrase.
 - Include concepts even if they might already exist — duplicates will be merged later.
-- For each concept, include direct quotes or key passages from the source.`,
+- For each concept, include direct quotes or key passages from the source.${customPrompt ? `\n\nAdditional instructions from the user:\n${customPrompt}` : ""}`,
+
     user: `Extract all distinct concepts from this source document.
 
 Source:
@@ -46,7 +47,8 @@ export function generateArticlePrompt(
   conceptName: string,
   passages: string[],
   existingArticle: string | null,
-  relatedConcepts: string[]
+  relatedConcepts: string[],
+  customPrompt?: string
 ): PromptPair {
   const passagesText = passages
     .map((p, i) => `--- Passage ${i + 1} ---\n${p}`)
@@ -68,7 +70,8 @@ Rules:
 - If an existing article is provided, UPDATE it with new information rather than replacing it.
 - Flag contradictions between old and new information with a > [!contradiction] callout.
 - Keep articles between 200-500 words.
-- Always include YAML frontmatter.`,
+- Always include YAML frontmatter.${customPrompt ? `\n\nAdditional instructions from the user:\n${customPrompt}` : ""}`,
+
     user: `Write or update the wiki article for: "${conceptName}"
 
 Source passages:
@@ -95,7 +98,8 @@ export function buildIndexPrompt(
     sources: string[];
     related: string[];
   }>,
-  timestamp: string
+  timestamp: string,
+  customPrompt?: string
 ): PromptPair {
   const uniqueSources = new Set(articles.flatMap((a) => a.sources));
 
@@ -103,7 +107,8 @@ export function buildIndexPrompt(
     system: `You are a wiki indexer. You organise wiki articles into a structured index with topic clusters.
 
 Here is the wiki schema:
-${schema}`,
+${schema}${customPrompt ? `\n\nAdditional instructions from the user:\n${customPrompt}` : ""}`,
+
     user: `Generate a master index for this wiki. Group articles into logical topic clusters.
 
 Articles:
@@ -136,10 +141,12 @@ Pages: ${articles.length} | Sources: ${uniqueSources.size}
 export function findRelevantArticlesPrompt(
   query: string,
   index: string,
-  graphSummary: string
+  graphSummary: string,
+  customPrompt?: string
 ): PromptPair {
   return {
-    system: `You are a wiki search assistant. Given a user's question and a wiki index, identify which articles are most relevant to answering the question.`,
+    system: `You are a wiki search assistant. Given a user's question and a wiki index, identify which articles are most relevant to answering the question.${customPrompt ? `\n\nAdditional instructions from the user:\n${customPrompt}` : ""}`,
+
     user: `Question: ${query}
 
 Wiki index:
@@ -163,7 +170,8 @@ Respond with JSON only. No markdown, no backticks.
 export function answerQueryPrompt(
   schema: string,
   query: string,
-  articles: string
+  articles: string,
+  customPrompt?: string
 ): PromptPair {
   return {
     system: `You are a knowledge assistant answering questions using a personal wiki.
@@ -176,7 +184,8 @@ Rules:
 - Cite which articles you drew from using [[Article Name]] wikilinks.
 - If the wiki doesn't contain enough information to fully answer, say so explicitly and suggest what sources the user should add to fill the gap.
 - Be concise and direct. No filler.
-- Structure your answer with clear paragraphs. Use headings only if the answer covers multiple distinct topics.`,
+- Structure your answer with clear paragraphs. Use headings only if the answer covers multiple distinct topics.${customPrompt ? `\n\nAdditional instructions from the user:\n${customPrompt}` : ""}`,
+
     user: `Question: ${query}
 
 Wiki articles:
@@ -194,13 +203,15 @@ Answer the question.`,
 export function lintWikiPrompt(
   schema: string,
   index: string,
-  articles: string
+  articles: string,
+  customPrompt?: string
 ): PromptPair {
   return {
     system: `You are a wiki quality auditor. You analyse a personal knowledge wiki and identify issues, gaps, and improvement opportunities.
 
 Here is the wiki schema:
-${schema}`,
+${schema}${customPrompt ? `\n\nAdditional instructions from the user:\n${customPrompt}` : ""}`,
+
     user: `Audit this wiki for quality issues.
 
 Index:

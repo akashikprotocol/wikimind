@@ -44,10 +44,11 @@ export async function generateIndex(
   root: string,
   articles: ArticleMeta[],
   schema: string,
-  model?: string
+  model?: string,
+  customPrompt?: string
 ): Promise<void> {
   const timestamp = new Date().toISOString();
-  const prompt = buildIndexPrompt(schema, articles, timestamp);
+  const prompt = buildIndexPrompt(schema, articles, timestamp, customPrompt);
   const indexContent = await complete(prompt.system, prompt.user, model);
   const indexPath = path.join(root, WIKI_PATHS.index);
   await fs.writeFile(indexPath, indexContent, "utf-8");

@@ -40,8 +40,9 @@ program
   .description("Extract concepts from ingested sources and generate interlinked wiki articles.")
   .option("--full", "Recompile all ingested sources from scratch.", false)
   .option("--dry-run", "Show what would change without writing any files.", false)
-  .action(async (opts: { full: boolean; dryRun: boolean }) => {
-    await compileCommand({ full: opts.full, dryRun: opts.dryRun });
+  .option("--prompt <text>", "Override the custom prompt for this run.")
+  .action(async (opts: { full: boolean; dryRun: boolean; prompt?: string }) => {
+    await compileCommand({ full: opts.full, dryRun: opts.dryRun, prompt: opts.prompt });
   });
 
 // query
@@ -50,8 +51,9 @@ program
   .description("Ask a question against the compiled wiki.")
   .option("--save", "Save the answer to queries/.", false)
   .option("--promote", "Promote the answer to a wiki/concepts/ article.", false)
-  .action(async (query: string | undefined, opts: { save: boolean; promote: boolean }) => {
-    await queryCommand(query, { save: opts.save, promote: opts.promote });
+  .option("--prompt <text>", "Override the custom prompt for this run.")
+  .action(async (query: string | undefined, opts: { save: boolean; promote: boolean; prompt?: string }) => {
+    await queryCommand(query, { save: opts.save, promote: opts.promote, prompt: opts.prompt });
   });
 
 // lint
@@ -60,8 +62,9 @@ program
   .description("Run health checks on the wiki.")
   .option("--structural", "Run structural checks only, no LLM calls.", false)
   .option("--fix", "Auto-fix broken links and missing connections.", false)
-  .action(async (opts: { structural: boolean; fix: boolean }) => {
-    await lintCommand({ structural: opts.structural, fix: opts.fix });
+  .option("--prompt <text>", "Override the custom prompt for this run.")
+  .action(async (opts: { structural: boolean; fix: boolean; prompt?: string }) => {
+    await lintCommand({ structural: opts.structural, fix: opts.fix, prompt: opts.prompt });
   });
 
 // config

@@ -8,6 +8,7 @@ const EDITABLE_KEYS = [
   "maxTokensPerChunk",
   "outputFormat",
   "autoBacklink",
+  "customPrompt",
 ] as const;
 
 type EditableKey = (typeof EDITABLE_KEYS)[number];
@@ -18,6 +19,7 @@ const ALL_DISPLAY_KEYS: (keyof WikiConfig)[] = [
   "maxTokensPerChunk",
   "outputFormat",
   "autoBacklink",
+  "customPrompt",
 ];
 
 function isEditableKey(key: string): key is EditableKey {

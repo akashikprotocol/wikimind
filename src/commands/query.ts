@@ -14,6 +14,7 @@ import type { WikiGraph } from "../types.js";
 interface QueryOptions {
   save: boolean;
   promote: boolean;
+  prompt?: string;
 }
 
 const MAX_ARTICLES_WITHOUT_SEARCH = 15;
@@ -66,7 +67,8 @@ async function runQuery(
   query: string,
   options: QueryOptions,
   config: { model: string },
-  schema: string
+  schema: string,
+  customPrompt?: string
 ): Promise<void> {
   const articlesDir = path.join(root, WIKI_PATHS.concepts);
   const allArticles = await listArticles(articlesDir);
@@ -91,7 +93,7 @@ async function runQuery(
       graphSummary = summariseGraph(graph);
     }
 
-    const prompt = findRelevantArticlesPrompt(query, indexContent, graphSummary);
+    const prompt = findRelevantArticlesPrompt(query, indexContent, graphSummary, customPrompt);
     const candidates = await completeJSON<string[]>(
       prompt.system,
       prompt.user,
@@ -175,7 +177,8 @@ async function runQuery(
   const answerPrompt = answerQueryPrompt(
     schema,
     query,
-    articleBlocks.join("\n\n")
+    articleBlocks.join("\n\n"),
+    customPrompt
   );
   const answer = await complete(
     answerPrompt.system,
@@ -268,10 +271,12 @@ export async function queryCommand(
 
   createClient();
 
+  const customPrompt = options.prompt || config.customPrompt || undefined;
+
   // ── Single-shot mode ──────────────────────────────────────────────────────
 
   if (queryArg) {
-    await runQuery(root, queryArg.trim(), options, config, schema);
+    await runQuery(root, queryArg.trim(), options, config, schema, customPrompt);
     return;
   }
 
@@ -307,7 +312,7 @@ export async function queryCommand(
         return;
       }
       try {
-        await runQuery(root, trimmed, options, config, schema);
+        await runQuery(root, trimmed, options, config, schema, customPrompt);
       } catch (err) {
         console.error(chalk.red(`Error: ${(err as Error).message}`));
       }

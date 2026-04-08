@@ -17,6 +17,7 @@ import type { ExtractedConcept, WikiState } from "../types.js";
 interface CompileOptions {
   full: boolean;
   dryRun: boolean;
+  prompt?: string;
 }
 
 function slugify(name: string): string {
@@ -53,6 +54,7 @@ export async function compileCommand(options: CompileOptions): Promise<void> {
   const state = await readState(root);
   const schemaPath = path.join(root, WIKI_PATHS.schema);
   const schema = await fs.readFile(schemaPath, "utf-8");
+  const customPrompt = options.prompt || config.customPrompt || undefined;
 
   // Resolve which sources to process before requiring the API key
   const ingestedEntries = Object.entries(state.ingested);
@@ -96,7 +98,7 @@ export async function compileCommand(options: CompileOptions): Promise<void> {
       const chunks = chunkDocument(sourceContent, config.maxTokensPerChunk);
 
       for (const chunk of chunks) {
-        const prompt = extractConceptsPrompt(schema, chunk);
+        const prompt = extractConceptsPrompt(schema, chunk, customPrompt);
         const extracted = await completeJSON<
           Omit<ExtractedConcept, "sourceFile">[]
         >(prompt.system, prompt.user, config.model);
@@ -209,7 +211,8 @@ Would update:  ~${wouldUpdate} existing articles
         concept.name,
         concept.passages,
         existingContent,
-        otherNames
+        otherNames,
+        customPrompt
       );
 
       const articleContent = await complete(
@@ -268,7 +271,7 @@ Would update:  ~${wouldUpdate} existing articles
   const indexSpinner = ora("Rebuilding index...").start();
   try {
     const articles = await collectArticleMeta(articlesDir);
-    await generateIndex(root, articles, schema, config.model);
+    await generateIndex(root, articles, schema, config.model, customPrompt);
     indexSpinner.succeed("Index updated.");
   } catch (err) {
     indexSpinner.warn(

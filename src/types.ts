@@ -16,6 +16,7 @@ export interface WikiConfig {
   outputFormat: "obsidian" | "standard";
   autoBacklink: boolean;
   created: string;
+  customPrompt?: string;
 }
 
 export interface WikiState {

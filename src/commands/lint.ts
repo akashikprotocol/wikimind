@@ -14,6 +14,7 @@ import { WIKI_PATHS } from "../types.js";
 interface LintOptions {
   structural: boolean;
   fix: boolean;
+  prompt?: string;
 }
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -411,6 +412,7 @@ export async function lintCommand(options: LintOptions): Promise<void> {
 
   const config = await readConfig(root);
   const articlesDir = path.join(root, WIKI_PATHS.concepts);
+  const customPrompt = options.prompt || config.customPrompt || undefined;
 
   let articleFiles: string[];
   try {
@@ -462,7 +464,7 @@ export async function lintCommand(options: LintOptions): Promise<void> {
         config.maxTokensPerChunk
       );
 
-      const prompt = lintWikiPrompt(schema, index, articlesText);
+      const prompt = lintWikiPrompt(schema, index, articlesText, customPrompt);
       llm = await completeJSON<LlmReport>(prompt.system, prompt.user, config.model);
       llmSpinner.stop();
       printLlm(llm);
