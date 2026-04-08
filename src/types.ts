@@ -51,11 +51,17 @@ export interface ArticleMeta {
 }
 
 export interface WikiGraph {
+  clusters?: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
   nodes: Array<{
     id: string;
     title: string;
     sources: number;
     links: number;
+    cluster?: string;
   }>;
   edges: Array<{
     from: string;

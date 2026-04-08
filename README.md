@@ -167,7 +167,7 @@ wikimind config customPrompt "Always cite the podcast this concept appeared in"
 ### v0.1.0 — Scaffolding
 - [x] project scaffolding with placeholders
 
-### v0.2.0 — Core CLI (current)
+### v0.2.0 — Core CLI
 - [x] `wikimind init` — project scaffolding with schema, index, and log
 - [x] `wikimind ingest` — normalise and track raw source documents
 - [x] `wikimind compile` — LLM-powered concept extraction, article generation, backlinks, graph
@@ -175,7 +175,12 @@ wikimind config customPrompt "Always cite the podcast this concept appeared in"
 - [x] `wikimind lint` — structural checks and LLM-powered quality audits
 - [x] `wikimind config` — view and update settings from CLI
 
-### v0.3.0 — Broader Ingestion
+### v0.3.0 — Graph & Export (current)
+- [x] `wikimind graph` — rebuild concept graph, optional LLM clustering
+- [x] `wikimind export --graph` — standalone interactive HTML knowledge graph
+- [x] Custom prompt support (`--prompt` flag and `customPrompt` config)
+
+### v0.4.0 — Broader Ingestion
 - [ ] URL ingestion (`wikimind ingest --url`)
 - [ ] PDF support
 - [ ] CSV to markdown tables

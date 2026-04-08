@@ -8,7 +8,7 @@ import { WIKI_PATHS } from "../types.js";
  */
 export async function appendLog(
   root: string,
-  type: "init" | "ingest" | "compile" | "query" | "lint",
+  type: "init" | "ingest" | "compile" | "query" | "lint" | "graph" | "export",
   title: string,
   detail?: string
 ): Promise<void> {

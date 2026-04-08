@@ -7,6 +7,8 @@ import { compileCommand } from "./commands/compile.js";
 import { configCommand } from "./commands/config.js";
 import { queryCommand } from "./commands/query.js";
 import { lintCommand } from "./commands/lint.js";
+import { graphCommand } from "./commands/graph.js";
+import { exportCommand } from "./commands/export.js";
 
 const program = new Command();
 
@@ -65,6 +67,26 @@ program
   .option("--prompt <text>", "Override the custom prompt for this run.")
   .action(async (opts: { structural: boolean; fix: boolean; prompt?: string }) => {
     await lintCommand({ structural: opts.structural, fix: opts.fix, prompt: opts.prompt });
+  });
+
+// graph
+program
+  .command("graph")
+  .description("Rebuild the concept graph from existing wiki articles.")
+  .option("--cluster", "Assign topic clusters via LLM.", false)
+  .action(async (opts: { cluster: boolean }) => {
+    await graphCommand({ cluster: opts.cluster });
+  });
+
+// export
+program
+  .command("export")
+  .description("Export wiki visualizations.")
+  .option("--graph", "Export interactive knowledge graph HTML.", false)
+  .option("--output <path>", "Output file path.")
+  .option("--view", "Open the exported file in the default browser.", false)
+  .action(async (opts: { graph: boolean; output?: string; view?: boolean }) => {
+    await exportCommand({ graph: opts.graph, output: opts.output, view: opts.view });
   });
 
 // config

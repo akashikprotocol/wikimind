@@ -249,3 +249,38 @@ Respond in JSON only. No markdown, no backticks.
 }`,
   };
 }
+
+/**
+ * Prompt for grouping wiki concepts into topic clusters.
+ * Returns a JSON object with a clusters array.
+ */
+export function clusterNodesPrompt(
+  nodes: Array<{ id: string; title: string }>,
+  edges: Array<{ from: string; to: string }>
+): PromptPair {
+  return {
+    system: `You are a knowledge organiser. Given a list of wiki concepts and their connections, group them into 3-7 topic clusters.`,
+    user: `Group these concepts into logical topic clusters. Each concept must belong to exactly one cluster.
+
+Concepts:
+${JSON.stringify(nodes, null, 2)}
+
+Connections:
+${JSON.stringify(edges, null, 2)}
+
+Respond with JSON only. No markdown, no backticks.
+
+{
+  "clusters": [
+    {
+      "name": "Short Cluster Name",
+      "color": "#hex color",
+      "nodes": ["node-id-1", "node-id-2"]
+    }
+  ]
+}
+
+Use these colors in order for clusters: #534AB7, #1D9E75, #D85A30, #378ADD, #D4537E, #639922, #BA7517
+Keep cluster names short (1-3 words).`,
+  };
+}
