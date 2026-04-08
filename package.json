@@ -1,6 +1,6 @@
 {
   "name": "wikimind",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI tool that uses LLMs to compile raw documents into a structured, interlinked wiki with auto-generated concepts, backlinks, and indexes. Based on Andrej Karpathy Post.",
   "author": "Sahil David",
   "license": "Apache-2.0",
