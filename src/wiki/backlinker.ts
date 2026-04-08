@@ -77,7 +77,7 @@ function insertBacklinksInBody(
       if (linked.has(key)) return match; // already linked earlier
       linked.add(key);
       count++;
-      return `[[${match}]]`;
+      return `[[${slugify(match)}|${match}]]`;
     });
   });
 

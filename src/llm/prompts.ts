@@ -66,7 +66,7 @@ ${schema}
 
 Rules:
 - Write in a neutral, encyclopedic tone.
-- Use [[Wikilinks]] to link to related concepts.
+- Use [[slug-name|Display Name]] pipe syntax for all wikilinks to related concepts. The slug is the concept name lowercased with spaces replaced by hyphens and special characters removed. For example: [[steve-bartlett|Steve Bartlett]], [[personal-development|Personal Development]].
 - If an existing article is provided, UPDATE it with new information rather than replacing it.
 - Flag contradictions between old and new information with a > [!contradiction] callout.
 - Keep articles between 200-500 words.
@@ -114,6 +114,8 @@ ${schema}${customPrompt ? `\n\nAdditional instructions from the user:\n${customP
 Articles:
 ${JSON.stringify(articles, null, 2)}
 
+IMPORTANT: Wikilinks MUST use pipe syntax with the slug filename before the pipe and the display title after. For example, an article with filename "steve-bartlett.md" and title "Steve Bartlett" must be linked as [[steve-bartlett\\|Steve Bartlett]]. Never use [[Steve Bartlett]] — always use [[slug\\|Title]]. CRITICAL: Inside markdown tables, you MUST escape the pipe character in wikilinks with a backslash (\\|) so it is not treated as a table column delimiter.
+
 Output format — respond with raw markdown, no backticks:
 
 # Index
@@ -127,7 +129,7 @@ Pages: ${articles.length} | Sources: ${uniqueSources.size}
 
 | Page | Summary | Sources |
 |------|---------|---------|
-| [[Page Name]] | One-line summary | 3 |
+| [[filename-slug\\|Page Title]] | One-line summary | 3 |
 
 ## {Another Cluster}
 ...`,

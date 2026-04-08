@@ -4,6 +4,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { getWikiRoot, readConfig, readState, writeState } from "../utils/config.js";
 import { fileExists } from "../utils/fs.js";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { createClient, complete, completeJSON } from "../llm/client.js";
 import { chunkDocument } from "../llm/chunker.js";
 import { extractConceptsPrompt, generateArticlePrompt } from "../llm/prompts.js";
@@ -27,6 +28,37 @@ function slugify(name: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .trim();
+}
+
+/**
+ * Ensures the article frontmatter includes an `aliases` field containing the display title.
+ * Obsidian uses aliases to resolve wikilinks to slugified filenames.
+ */
+function ensureAliases(content: string, displayTitle: string): string {
+  if (!content.startsWith("---")) {
+    return `---\ntitle: "${displayTitle}"\naliases:\n  - "${displayTitle}"\n---\n\n${content}`;
+  }
+  const end = content.indexOf("\n---", 3);
+  if (end === -1) return content;
+
+  const yamlBlock = content.slice(4, end);
+  const body = content.slice(end + 4);
+
+  let data: Record<string, unknown>;
+  try {
+    data = parseYaml(yamlBlock) ?? {};
+  } catch {
+    return content;
+  }
+
+  const aliases = Array.isArray(data.aliases) ? [...data.aliases] as string[] : [];
+  if (!aliases.includes(displayTitle)) {
+    aliases.push(displayTitle);
+    data.aliases = aliases;
+    const yamlStr = stringifyYaml(data).trimEnd();
+    return `---\n${yamlStr}\n---${body}`;
+  }
+  return content;
 }
 
 /**
@@ -220,7 +252,8 @@ Would update:  ~${wouldUpdate} existing articles
         prompt.user,
         config.model
       );
-      await fs.writeFile(articlePath, articleContent, "utf-8");
+      const articleWithAliases = ensureAliases(articleContent, concept.name);
+      await fs.writeFile(articlePath, articleWithAliases, "utf-8");
 
       if (exists) {
         updatedCount++;

@@ -9,6 +9,8 @@ import { parseFrontmatter } from "../utils/frontmatter.js";
 import { createClient, completeJSON } from "../llm/client.js";
 import { lintWikiPrompt } from "../llm/prompts.js";
 import { appendLog } from "../wiki/log.js";
+import { buildGraph } from "../wiki/graph.js";
+import { stringify as stringifyYaml } from "yaml";
 import { WIKI_PATHS } from "../types.js";
 
 interface LintOptions {
@@ -75,9 +77,11 @@ function extractWikilinks(body: string): string[] {
 /**
  * Inserts a [[wikilink]] for a target concept name in an article body,
  * if it is mentioned as plain text but not already linked.
+ * Uses pipe syntax [[slug|Display]] for Obsidian compatibility.
+ * Matches whole words, first mention only, skips headings.
  * Returns the updated body and the number of insertions made.
  */
-function insertLink(body: string, targetName: string): { text: string; inserted: number } {
+function insertLink(body: string, targetName: string, targetSlug: string): { text: string; inserted: number } {
   const escaped = targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Protect existing wikilinks
   const placeholders: string[] = [];
@@ -89,12 +93,19 @@ function insertLink(body: string, targetName: string): { text: string; inserted:
 
   const re = new RegExp(`\\b(${escaped})\\b`, "gi");
   let inserted = 0;
-  protected_ = protected_.replace(re, (match) => {
-    inserted++;
-    return `[[${match}]]`;
+  // Process line-by-line to skip headings, first mention only
+  const lines = protected_.split("\n");
+  const processed = lines.map((line) => {
+    if (inserted > 0) return line;
+    if (/^#{1,6}\s/.test(line)) return line;
+    return line.replace(re, (match) => {
+      if (inserted > 0) return match;
+      inserted++;
+      return `[[${targetSlug}|${match}]]`;
+    });
   });
 
-  const result = protected_.replace(/\x00WL(\d+)\x00/g, (_, i) => placeholders[parseInt(i, 10)]);
+  const result = processed.join("\n").replace(/\x00WL(\d+)\x00/g, (_, i) => placeholders[parseInt(i, 10)]);
   return { text: result, inserted };
 }
 
@@ -233,22 +244,38 @@ async function loadArticlesForLlm(
 
 // ── Phase 3: Auto-fix ──────────────────────────────────────────────────────────
 
+interface AutoFixResult {
+  fixedLinks: number;
+  unfixableLinks: number;
+  insertedConnections: number;
+  fixedFrontmatter: number;
+}
+
 /**
- * Auto-fixes broken links caused by slug mismatches and inserts missing connections
- * identified by the LLM. Returns counts of what was fixed.
+ * Auto-fixes broken links, missing connections, missing frontmatter,
+ * and ensures all articles have aliases and pipe-syntax wikilinks.
  */
 async function autoFix(
   articlesDir: string,
+  articleFiles: string[],
   brokenLinks: BrokenLink[],
+  missingFrontmatter: string[],
   missingConnections: LlmReport["missingConnections"]
-): Promise<{ fixedLinks: number; insertedConnections: number }> {
+): Promise<AutoFixResult> {
   let fixedLinks = 0;
+  let unfixableLinks = 0;
   let insertedConnections = 0;
+  let fixedFrontmatter = 0;
 
-  // Group fixable broken links by file
+  const articleSet = new Set(articleFiles.map(f => f.replace(/\.md$/, "")));
+
+  // 1. Fix broken links using pipe syntax
   const fixableByFile = new Map<string, BrokenLink[]>();
   for (const bl of brokenLinks) {
-    if (!bl.fixable || !bl.fixedTarget) continue;
+    if (!bl.fixable || !bl.fixedTarget) {
+      unfixableLinks++;
+      continue;
+    }
     const arr = fixableByFile.get(bl.file) ?? [];
     arr.push(bl);
     fixableByFile.set(bl.file, arr);
@@ -258,33 +285,108 @@ async function autoFix(
     const filePath = path.join(articlesDir, file);
     let content = await fs.readFile(filePath, "utf-8");
     for (const fix of fixes) {
-      const targetTitle = fix.fixedTarget!.replace(/\.md$/, "");
-      // Replace [[Wrong Name]] with [[correct-slug]] style target
+      const targetSlug = fix.fixedTarget!.replace(/\.md$/, "");
       const escaped = fix.link.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(`\\[\\[${escaped}\\]\\]`, "g");
-      const count = (content.match(re) ?? []).length;
-      content = content.replace(re, `[[${targetTitle}]]`);
-      fixedLinks += count;
+      // Fix piped links: [[Wrong Target|display]] → [[correct-slug|display]]
+      const rePiped = new RegExp(`\\[\\[${escaped}\\|([^\\]]+)\\]\\]`, "g");
+      const pipedCount = (content.match(rePiped) ?? []).length;
+      content = content.replace(rePiped, `[[${targetSlug}|$1]]`);
+      fixedLinks += pipedCount;
+      // Fix plain links: [[Wrong Name]] → [[correct-slug|Wrong Name]]
+      const rePlain = new RegExp(`\\[\\[${escaped}\\]\\]`, "g");
+      const plainCount = (content.match(rePlain) ?? []).length;
+      content = content.replace(rePlain, `[[${targetSlug}|${fix.link}]]`);
+      fixedLinks += plainCount;
     }
     await fs.writeFile(filePath, content, "utf-8");
   }
 
-  // Insert missing connections
+  // 2. Fix missing connections using pipe syntax
   for (const mc of missingConnections) {
     const fromPath = path.join(articlesDir, mc.from);
-    const toTitle = mc.to.replace(/\.md$/, "").replace(/-/g, " ");
+    const toSlug = mc.to.replace(/\.md$/, "");
+    const toTitle = toSlug.replace(/-/g, " ");
     if (!(await fileExists(fromPath))) continue;
 
     const raw = await fs.readFile(fromPath, "utf-8");
     const { frontmatter, body } = splitFm(raw);
-    const { text: newBody, inserted } = insertLink(body, toTitle);
+    const { text: newBody, inserted } = insertLink(body, toTitle, toSlug);
     if (inserted > 0) {
       await fs.writeFile(fromPath, frontmatter + newBody, "utf-8");
       insertedConnections += inserted;
     }
   }
 
-  return { fixedLinks, insertedConnections };
+  // 3. Fix missing frontmatter
+  for (const file of missingFrontmatter) {
+    const filePath = path.join(articlesDir, file);
+    const raw = await fs.readFile(filePath, "utf-8");
+    const { data, content: body } = parseFrontmatter(raw);
+
+    const h1Match = raw.match(/^# (.+)$/m);
+    const title = (data.title as string) ||
+      (h1Match ? h1Match[1].trim() :
+       file.replace(/\.md$/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
+
+    const now = new Date().toISOString();
+    const newData: Record<string, unknown> = {
+      title,
+      aliases: [title],
+      sources: [],
+      related: [],
+      created: now,
+      updated: now,
+      ...data,
+    };
+    // Ensure aliases includes title
+    if (!Array.isArray(newData.aliases)) newData.aliases = [title];
+    else if (!(newData.aliases as string[]).includes(title)) (newData.aliases as string[]).push(title);
+
+    const yamlStr = stringifyYaml(newData).trimEnd();
+    const bodyContent = body.replace(/^\n+/, "");
+    await fs.writeFile(filePath, `---\n${yamlStr}\n---\n\n${bodyContent}`, "utf-8");
+    fixedFrontmatter++;
+  }
+
+  // 4. Ensure aliases and convert wikilinks to pipe syntax in all articles
+  for (const file of articleFiles) {
+    const filePath = path.join(articlesDir, file);
+    let content = await fs.readFile(filePath, "utf-8");
+    let modified = false;
+
+    // Add aliases to frontmatter if missing
+    const { data, content: body } = parseFrontmatter(content);
+    if (data.title) {
+      const title = data.title as string;
+      const aliases = Array.isArray(data.aliases) ? [...data.aliases] as string[] : [];
+      if (!aliases.includes(title)) {
+        aliases.push(title);
+        data.aliases = aliases;
+        const yamlStr = stringifyYaml(data).trimEnd();
+        content = `---\n${yamlStr}\n---${body}`;
+        modified = true;
+      }
+    }
+
+    // Convert unresolved [[Link Text]] to [[slug|Link Text]] pipe syntax
+    content = content.replace(/\[\[([^\]|]+)\]\]/g, (match, linkText: string) => {
+      const trimmed = linkText.trim();
+      const slug = slugify(trimmed);
+      if (articleSet.has(trimmed)) return match; // already resolves by filename
+      if (slug === trimmed) return match; // already a slug
+      if (articleSet.has(slug)) {
+        modified = true;
+        return `[[${slug}|${trimmed}]]`;
+      }
+      return match;
+    });
+
+    if (modified) {
+      await fs.writeFile(filePath, content, "utf-8");
+    }
+  }
+
+  return { fixedLinks, unfixableLinks, insertedConnections, fixedFrontmatter };
 }
 
 function splitFm(content: string): { frontmatter: string; body: string } {
@@ -436,7 +538,7 @@ export async function lintCommand(options: LintOptions): Promise<void> {
 
   if (options.structural) {
     // Summarise and exit without LLM
-    printSummary(articleFiles.length, structural, null, 0, 0);
+    printSummary(articleFiles.length, structural, null, null);
     await logResult(root, articleFiles.length, structural, null);
     return;
   }
@@ -475,32 +577,36 @@ export async function lintCommand(options: LintOptions): Promise<void> {
 
   // ── Phase 3: Auto-fix ─────────────────────────────────────────────────────
 
-  let fixedLinks = 0;
-  let insertedConnections = 0;
+  let fixResult: AutoFixResult | null = null;
 
   if (options.fix) {
     const fixSpinner = ora("Applying auto-fixes...").start();
     try {
-      const result = await autoFix(
+      fixResult = await autoFix(
         articlesDir,
+        articleFiles,
         structural.brokenLinks,
+        structural.missingFrontmatter,
         llm?.missingConnections ?? []
       );
-      fixedLinks = result.fixedLinks;
-      insertedConnections = result.insertedConnections;
-      fixSpinner.succeed(
-        chalk.green(
-          `✓ Fixed ${fixedLinks} broken link(s), inserted ${insertedConnections} missing connection(s).`
-        )
-      );
+      fixSpinner.succeed(chalk.green("Auto-fixes applied."));
     } catch (err) {
       fixSpinner.warn(chalk.yellow(`Auto-fix failed: ${(err as Error).message}`));
+    }
+
+    // Rebuild graph after fixes
+    const graphSpinner = ora("Rebuilding graph...").start();
+    try {
+      await buildGraph(articlesDir);
+      graphSpinner.succeed("Graph updated.");
+    } catch (err) {
+      graphSpinner.warn(chalk.yellow(`Graph rebuild failed: ${(err as Error).message}`));
     }
   }
 
   // ── Summary + log ─────────────────────────────────────────────────────────
 
-  printSummary(articleFiles.length, structural, llm, fixedLinks, insertedConnections);
+  printSummary(articleFiles.length, structural, llm, fixResult);
   await logResult(root, articleFiles.length, structural, llm);
 }
 
@@ -508,47 +614,67 @@ function printSummary(
   articleCount: number,
   structural: LintReport,
   llm: LlmReport | null,
-  fixedLinks: number,
-  insertedConnections: number
+  fixResult: AutoFixResult | null
 ): void {
-  const totalBrokenLinks = structural.brokenLinks.length;
   const orphans = structural.orphanedArticles.length;
   const stale = structural.staleSources.length;
   const contradictions = llm?.contradictions.length ?? 0;
-  const gaps = llm?.gaps.length ?? 0;
   const weak = llm?.weakArticles.length ?? 0;
   const missing = llm?.missingConnections.length ?? 0;
-  const suggested = llm?.suggestedArticles.length ?? 0;
 
-  // Count total incoming [[wikilinks]] across all articles
-  // (not computed here — use structural data instead of re-scanning)
-  console.log(`\n${chalk.bold("Wiki health report:")}\n`);
-  console.log(`  ${chalk.green("✓")} ${articleCount} article(s)`);
+  if (fixResult) {
+    // Print fix summary
+    console.log(`\n${chalk.bold.green("✓ Fixed:")}\n`);
+    if (fixResult.fixedLinks > 0)
+      console.log(`  - ${fixResult.fixedLinks} broken links repaired`);
+    if (fixResult.insertedConnections > 0)
+      console.log(`  - ${fixResult.insertedConnections} missing connections inserted`);
+    if (fixResult.fixedFrontmatter > 0)
+      console.log(`  - ${fixResult.fixedFrontmatter} missing frontmatter added`);
 
-  if (totalBrokenLinks > 0) {
-    console.log(`  ${chalk.red("✗")} ${totalBrokenLinks} broken link(s)`);
+    const couldNotFix: string[] = [];
+    if (fixResult.unfixableLinks > 0)
+      couldNotFix.push(`  - ${fixResult.unfixableLinks} broken links (no matching article found)`);
+    if (orphans > 0)
+      couldNotFix.push(`  - ${orphans} orphaned articles (need manual review)`);
+    if (contradictions > 0)
+      couldNotFix.push(`  - ${contradictions} contradictions (need manual review)`);
+    if (weak > 0)
+      couldNotFix.push(`  - ${weak} weak articles (run wikimind compile --full to regenerate)`);
+
+    if (couldNotFix.length > 0) {
+      console.log(`\n${chalk.bold.yellow("Could not fix:")}\n`);
+      for (const line of couldNotFix) console.log(line);
+    }
   } else {
-    console.log(`  ${chalk.green("✓")} No broken links`);
-  }
+    // Standard summary (no fix applied)
+    const totalBrokenLinks = structural.brokenLinks.length;
+    console.log(`\n${chalk.bold("Wiki health report:")}\n`);
+    console.log(`  ${chalk.green("✓")} ${articleCount} article(s)`);
 
-  if (orphans > 0) console.log(`  ${chalk.yellow("⚠")} ${orphans} orphaned article(s)`);
-  if (stale > 0) console.log(`  ${chalk.yellow("⚠")} ${stale} stale source(s)`);
-  if (contradictions > 0) console.log(`  ${chalk.red("✗")} ${contradictions} contradiction(s)`);
-  if (gaps > 0) console.log(`  ${chalk.yellow("⚠")} ${gaps} concept gap(s)`);
-  if (weak > 0) console.log(`  ${chalk.yellow("⚠")} ${weak} weak article(s)`);
-  if (missing > 0) console.log(`  ${chalk.cyan("→")} ${missing} missing connection(s)`);
-  if (suggested > 0) console.log(`  ${chalk.blue("+")} ${suggested} suggested new article(s)`);
+    if (totalBrokenLinks > 0) {
+      console.log(`  ${chalk.red("✗")} ${totalBrokenLinks} broken link(s)`);
+    } else {
+      console.log(`  ${chalk.green("✓")} No broken links`);
+    }
 
-  console.log();
+    if (orphans > 0) console.log(`  ${chalk.yellow("⚠")} ${orphans} orphaned article(s)`);
+    if (stale > 0) console.log(`  ${chalk.yellow("⚠")} ${stale} stale source(s)`);
+    if (contradictions > 0) console.log(`  ${chalk.red("✗")} ${contradictions} contradiction(s)`);
+    if (missing > 0) console.log(`  ${chalk.cyan("→")} ${missing} missing connection(s)`);
+    if (weak > 0) console.log(`  ${chalk.yellow("⚠")} ${weak} weak article(s)`);
 
-  const fixableLinks = structural.brokenLinks.filter((b) => b.fixable).length;
-  if ((fixableLinks > 0 || missing > 0) && fixedLinks === 0 && insertedConnections === 0) {
-    console.log(
-      chalk.dim("Run wikimind lint --fix to auto-repair broken links and missing connections.")
-    );
-  }
-  if (stale > 0) {
-    console.log(chalk.dim("Run wikimind compile to reprocess stale sources."));
+    console.log();
+
+    const fixableLinks = structural.brokenLinks.filter((b) => b.fixable).length;
+    if (fixableLinks > 0 || missing > 0 || structural.missingFrontmatter.length > 0) {
+      console.log(
+        chalk.dim("Run wikimind lint --fix to auto-repair broken links, missing connections, and frontmatter.")
+      );
+    }
+    if (stale > 0) {
+      console.log(chalk.dim("Run wikimind compile to reprocess stale sources."));
+    }
   }
   console.log();
 }
