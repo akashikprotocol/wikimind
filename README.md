@@ -164,47 +164,71 @@ wikimind config customPrompt "Always cite the podcast this concept appeared in"
 
 ## Roadmap
 
-### v0.1.0 — Scaffolding
-- [x] project scaffolding with placeholders
+> Each version addresses scale — from caching and incremental compilation to summarisation hierarchies and vector search — so wikimind stays fast whether you have 10 sources or 10,000.
 
-### v0.2.0 — Core CLI
+### v0.3 — Core CLI (current)
 - [x] `wikimind init` — project scaffolding with schema, index, and log
-- [x] `wikimind ingest` — normalise and track raw source documents
+- [x] `wikimind ingest` — normalise and track raw source documents (.md, .txt, .json)
 - [x] `wikimind compile` — LLM-powered concept extraction, article generation, backlinks, graph
 - [x] `wikimind query` — natural language Q&A against the compiled wiki
 - [x] `wikimind lint` — structural checks and LLM-powered quality audits
-- [x] `wikimind config` — view and update settings from CLI
+- [x] `wikimind lint --fix` — auto-repair broken links, missing frontmatter, missing connections
+- [x] `wikimind config` — view and update settings, custom prompts
+- [x] `wikimind graph --cluster` — build knowledge graph with LLM-assigned topic clusters
+- [x] `wikimind export --graph --view` — neural pathway visualization in the browser
 
-### v0.3.0 — Graph & Export (current)
-- [x] `wikimind graph` — rebuild concept graph, optional LLM clustering
-- [x] `wikimind export --graph` — standalone interactive HTML knowledge graph
-- [x] Custom prompt support (`--prompt` flag and `customPrompt` config)
-
-### v0.4.0 — Broader Ingestion
+### v0.4 — Ingest Everything + Scale
 - [ ] URL ingestion (`wikimind ingest --url`)
-- [ ] PDF support
-- [ ] CSV to markdown tables
-- [ ] HTML to markdown conversion
+- [ ] PDF ingestion
+- [ ] YouTube transcript ingestion (`wikimind ingest --youtube`)
+- [ ] CSV and HTML to markdown
+- [ ] Parallel ingestion (3-5 files concurrently)
+- [ ] Incremental compile with caching (only reprocess what changed)
+- [ ] Keyword search index for fast query retrieval on large wikis
 
-### v0.4.0 — Local UI
-- [ ] `wikimind serve` — local web UI with interactive knowledge graph
-- [ ] Query interface with chat UI
-- [ ] Gaps dashboard
+### v0.5 — Local UI
+- [ ] `wikimind serve` — local web app with interactive knowledge graph
+- [ ] Browse and read articles in the browser
+- [ ] Query chat interface
+- [ ] Lint dashboard with health score
+- [ ] Compile budget controls (`--budget`, `--batch`)
 
-### v0.5.0 — Publish & Share
-- [ ] `wikimind publish` — push wiki to llm-wiki.dev
-- [ ] Public wiki profiles
-- [ ] Embeddable knowledge graphs
+### v0.6 — Publish + Share
+- [ ] llm-wiki.dev goes live
+- [ ] User accounts (GitHub OAuth)
+- [ ] `wikimind publish` — push your wiki to the cloud
+- [ ] Public wiki profiles (`llm-wiki.dev/@username/wiki-name`)
+- [ ] Embeddable knowledge graph widget
+- [ ] Summarisation hierarchy for 1000+ article wikis
 
-### v0.6.0 — Multi-Model & Ecosystem
+### v0.7 — Discovery + Community
+- [ ] Explore page — trending, newest, by topic
+- [ ] Fork a wiki — clone and extend with your own sources
+- [ ] Star and follow wikis
+- [ ] Wiki health scores — completeness, link density, freshness
+- [ ] Comments on articles
+
+### v0.8 — Teams
+- [ ] Team workspaces on llm-wiki.dev
+- [ ] Invite members with role-based access (admin, editor, viewer)
+- [ ] Shared wikis with multiple contributors
+- [ ] Activity feed — who added what, when
+- [ ] Merge workflow for concurrent edits
+- [ ] Slack integration — ingest threads directly into a team wiki
+- [ ] Vector embeddings for large-scale team knowledge bases
+
+### v0.9 — Integrations
+- [ ] Ingest from Notion, Google Docs, Confluence
+- [ ] Meeting transcript ingestion (Otter, Fireflies)
+- [ ] API access — query any published wiki programmatically
+- [ ] Webhooks — trigger compile on new sources
+
+### v1.0 — Stable Platform
+- [ ] Plugin system for custom ingest formats
 - [ ] Provider abstraction (OpenAI, Gemini, local models)
-- [ ] Akashik Protocol integration (wiki as a shared memory layer)
-- [ ] Fork and explore other published wikis
-
-### v1.0.0 — Stable
+- [ ] Self-hosted option for enterprise
 - [ ] Full Obsidian vault compatibility
-- [ ] Plugin system
-- [ ] Team wikis and collaborative editing
+- [ ] Akashik Protocol integration — shared memory layer across wikis
 
 ## License
 
