@@ -21,6 +21,28 @@ npm install -g wikimind
 - Node.js 18+
 - Anthropic API key (`export ANTHROPIC_API_KEY=sk-...`)
 
+## LLM Provider
+
+wikimind supports two ways to connect to Claude:
+
+### Direct (Anthropic API)
+
+```bash
+export ANTHROPIC_API_KEY=sk-...
+```
+
+### Google Cloud Vertex AI
+
+Set `CLAUDE_CODE_USE_VERTEX=1` along with your project and region:
+
+```bash
+export CLAUDE_CODE_USE_VERTEX=1
+export ANTHROPIC_VERTEX_PROJECT_ID=my-gcp-project
+export CLOUD_ML_REGION=us-east5
+```
+
+Vertex AI uses Application Default Credentials — run `gcloud auth application-default login` if you haven't already.
+
 ## Quick Start
 
 ```bash
@@ -166,7 +188,7 @@ wikimind config customPrompt "Always cite the podcast this concept appeared in"
 
 > Each version addresses scale — from caching and incremental compilation to summarisation hierarchies and vector search — so wikimind stays fast whether you have 10 sources or 10,000.
 
-### v0.3 — Core CLI (current)
+### v0.3 — Core CLI
 - [x] `wikimind init` — project scaffolding with schema, index, and log
 - [x] `wikimind ingest` — normalise and track raw source documents (.md, .txt, .json)
 - [x] `wikimind compile` — LLM-powered concept extraction, article generation, backlinks, graph
@@ -177,7 +199,8 @@ wikimind config customPrompt "Always cite the podcast this concept appeared in"
 - [x] `wikimind graph --cluster` — build knowledge graph with LLM-assigned topic clusters
 - [x] `wikimind export --graph --view` — neural pathway visualization in the browser
 
-### v0.4 — Ingest Everything + Scale
+### v0.4 — Ingest Everything + Scale (current)
+- [x] Google Cloud Vertex AI support (`CLAUDE_CODE_USE_VERTEX=1`)
 - [ ] URL ingestion (`wikimind ingest --url`)
 - [ ] PDF ingestion
 - [ ] YouTube transcript ingestion (`wikimind ingest --youtube`)
