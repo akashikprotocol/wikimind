@@ -60,6 +60,18 @@ function getClient(): AnyClient {
 }
 
 /**
+ * Returns true if LLM credentials are present in the environment.
+ * Checks CLAUDE_CODE_USE_VERTEX (+ CLOUD_ML_REGION + ANTHROPIC_VERTEX_PROJECT_ID)
+ * or ANTHROPIC_API_KEY for direct access.
+ */
+export function hasLLMCredentials(): boolean {
+  if (process.env.CLAUDE_CODE_USE_VERTEX === "1") {
+    return !!(process.env.CLOUD_ML_REGION && process.env.ANTHROPIC_VERTEX_PROJECT_ID);
+  }
+  return !!process.env.ANTHROPIC_API_KEY;
+}
+
+/**
  * Sends a message to Claude and returns the text response.
  * Retries up to 3 times with exponential backoff on rate limits (429) and server errors (5xx).
  * Uses the provided model, or falls back to the default.

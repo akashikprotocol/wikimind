@@ -6,7 +6,7 @@ import ora from "ora";
 import { getWikiRoot, readConfig, readState } from "../utils/config.js";
 import { fileExists, slugify } from "../utils/fs.js";
 import { parseFrontmatter } from "../utils/frontmatter.js";
-import { createClient, completeJSON } from "../llm/client.js";
+import { createClient, completeJSON, hasLLMCredentials } from "../llm/client.js";
 import { lintWikiPrompt } from "../llm/prompts.js";
 import { appendLog } from "../wiki/log.js";
 import { buildGraph } from "../wiki/graph.js";
@@ -547,10 +547,10 @@ export async function lintCommand(options: LintOptions): Promise<void> {
 
   let llm: LlmReport | null = null;
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!hasLLMCredentials()) {
     console.log(
       chalk.yellow(
-        "\nSkipping LLM analysis — no API key set. Run with --structural or set ANTHROPIC_API_KEY."
+        "\nSkipping LLM analysis — no credentials found. Run with --structural or set ANTHROPIC_API_KEY / configure Vertex AI."
       )
     );
   } else {

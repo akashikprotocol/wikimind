@@ -7,6 +7,7 @@ import { buildGraph, clusterGraph } from "../wiki/graph.js";
 import { appendLog } from "../wiki/log.js";
 import { WIKI_PATHS } from "../types.js";
 import type { WikiGraph } from "../types.js";
+import { createClient, hasLLMCredentials } from "../llm/client.js";
 
 interface GraphOptions {
   cluster: boolean;
@@ -51,10 +52,10 @@ export async function graphCommand(options: GraphOptions): Promise<void> {
 
   if (options.cluster) {
     // LLM clustering requested
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!hasLLMCredentials()) {
       spinner.warn(
         chalk.yellow(
-          "No API key set — skipping LLM clustering. Set ANTHROPIC_API_KEY to enable."
+          "No LLM credentials found — skipping LLM clustering. Set ANTHROPIC_API_KEY or configure Vertex AI."
         )
       );
       graph = applyFallbackClusters(graph);

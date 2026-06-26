@@ -5,7 +5,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { getWikiRoot, readConfig } from "../utils/config.js";
 import { fileExists, slugify } from "../utils/fs.js";
-import { createClient, completeJSON, complete } from "../llm/client.js";
+import { createClient, completeJSON, complete, hasLLMCredentials } from "../llm/client.js";
 import { findRelevantArticlesPrompt, answerQueryPrompt } from "../llm/prompts.js";
 import { appendLog } from "../wiki/log.js";
 import { WIKI_PATHS } from "../types.js";
@@ -262,9 +262,9 @@ export async function queryCommand(
     process.exit(1);
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!hasLLMCredentials()) {
     console.error(
-      chalk.red("Set your Anthropic API key: export ANTHROPIC_API_KEY=sk-...")
+      chalk.red("No LLM credentials found. Set ANTHROPIC_API_KEY or configure Vertex AI (CLAUDE_CODE_USE_VERTEX=1).")
     );
     process.exit(1);
   }
