@@ -1,9 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 const MAX_RETRIES = 3;
 
-let _client: Anthropic | null = null;
+type AnyClient = Anthropic | AnthropicVertex;
+
+let _client: AnyClient | null = null;
 
 function isRetryableError(err: unknown): boolean {
   if (typeof err === "object" && err !== null && "status" in err) {
@@ -18,21 +21,38 @@ async function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Initialises the Anthropic client from ANTHROPIC_API_KEY.
- * Must be called once before any LLM requests.
- * Throws a clear error if the key is not set.
+ * Initialises the Anthropic client.
+ * If CLAUDE_CODE_USE_VERTEX=1, connects via Google Cloud Vertex AI using
+ * CLOUD_ML_REGION and ANTHROPIC_VERTEX_PROJECT_ID.
+ * Otherwise, connects directly using ANTHROPIC_API_KEY.
  */
 export function createClient(): void {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "Set your Anthropic API key: export ANTHROPIC_API_KEY=sk-..."
-    );
+  if (process.env.CLAUDE_CODE_USE_VERTEX === "1") {
+    const region = process.env.CLOUD_ML_REGION;
+    const projectId = process.env.ANTHROPIC_VERTEX_PROJECT_ID;
+    if (!region) {
+      throw new Error(
+        "CLAUDE_CODE_USE_VERTEX=1 requires CLOUD_ML_REGION to be set."
+      );
+    }
+    if (!projectId) {
+      throw new Error(
+        "CLAUDE_CODE_USE_VERTEX=1 requires ANTHROPIC_VERTEX_PROJECT_ID to be set."
+      );
+    }
+    _client = new AnthropicVertex({ region, projectId });
+  } else {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "Set your Anthropic API key: export ANTHROPIC_API_KEY=sk-..."
+      );
+    }
+    _client = new Anthropic({ apiKey });
   }
-  _client = new Anthropic({ apiKey });
 }
 
-function getClient(): Anthropic {
+function getClient(): AnyClient {
   if (!_client) {
     throw new Error("LLM client not initialised. Call createClient() first.");
   }
